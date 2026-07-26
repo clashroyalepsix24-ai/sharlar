@@ -316,10 +316,11 @@ function ballBg(c){
 }
 
 /* ================= Level design ================= */
+const MAX_LEVEL = 100;
 function levelConfig(level){
-  const colors   = Math.min(3 + Math.floor((level - 1) / 2), 7);
-  const perColor = Math.min(4 + Math.floor((level - 1) / 3), 7);
-  const empties  = level <= 3 ? 2 : 1;
+  const colors   = Math.min(3 + Math.floor((level - 1) / 16), 8);
+  const perColor = Math.min(4 + Math.floor((level - 1) / 50), 5);
+  const empties  = level <= 4 ? 2 : 1;
   return { colors:colors, perColor:perColor, empties:empties, capacity: perColor + 1 };
 }
 
@@ -335,20 +336,23 @@ function isSolved(tubes, perColor){
 }
 function monoFull(t, perColor){ return t.length === perColor && t.every(function(b){ return b === t[0]; }); }
 function serialize(tubes){ return tubes.map(function(t){ return t.join("."); }).sort().join("|"); }
+/* SINGLE-BALL move model: only the top ball moves, even over a same-colour run */
 function neighboursMoves(tubes, capacity, perColor){
   const out = [];
   for(let i = 0; i < tubes.length; i++){
-    const src = tubes[i]; const run = topRun(src);
-    if(!run) continue; if(monoFull(src, perColor)) continue;
+    const src = tubes[i];
+    if(src.length === 0) continue;
+    if(monoFull(src, perColor)) continue;
+    const color = src[src.length-1];
+    const uniform = src.every(function(b){ return b === color; });
     for(let j = 0; j < tubes.length; j++){
       if(i === j) continue;
       const dst = tubes[j]; const space = capacity - dst.length;
       if(space <= 0) continue;
-      if(dst.length > 0 && dst[dst.length-1] !== run.color) continue;
-      if(dst.length === 0 && run.count === src.length) continue;
-      const move = Math.min(run.count, space);
+      if(dst.length > 0 && dst[dst.length-1] !== color) continue;
+      if(dst.length === 0 && uniform) continue;
       const nt = tubes.map(function(t){ return t.slice(); });
-      for(let m = 0; m < move; m++) nt[j].push(nt[i].pop());
+      nt[j].push(nt[i].pop());
       let score = 0;
       if(dst.length > 0) score += 3;
       if(monoFull(nt[j], perColor)) score += 6;
@@ -359,24 +363,25 @@ function neighboursMoves(tubes, capacity, perColor){
   out.sort(function(a,b){ return a.score - b.score; });
   return out;
 }
-function solvePath(tubes, cfg){
+/* Solver: returns {ok, len, first:{from,to}} — tracks only depth + first move (fast). */
+function solveInfo(tubes, cfg){
   const seen = new Set();
-  const stack = [{ st: tubes.map(function(t){ return t.slice(); }), path: [] }];
+  const stack = [{ st: tubes.map(function(t){ return t.slice(); }), first: null, d: 0 }];
   let nodes = 0; const CAP = 200000;
   while(stack.length){
-    if(++nodes > CAP) return null;
+    if(++nodes > CAP) return { ok: false };
     const cur = stack.pop();
     const key = serialize(cur.st);
     if(seen.has(key)) continue;
     seen.add(key);
-    if(isSolved(cur.st, cfg.perColor)) return { path: cur.path };
+    if(isSolved(cur.st, cfg.perColor)) return { ok: true, len: cur.d, first: cur.first };
     const nb = neighboursMoves(cur.st, cfg.capacity, cfg.perColor);
     for(let i = 0; i < nb.length; i++){
       const m = nb[i];
-      if(!seen.has(serialize(m.st))) stack.push({ st: m.st, path: cur.path.concat([{ from: m.from, to: m.to }]) });
+      if(!seen.has(serialize(m.st))) stack.push({ st: m.st, first: cur.first || { from: m.from, to: m.to }, d: cur.d + 1 });
     }
   }
-  return null;
+  return { ok: false };
 }
 function shuffle(a){ for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } }
 function dealRandom(cfg){
@@ -393,10 +398,10 @@ function generateLevel(level){
   for(let a = 0; a < 400; a++){
     const tubes = dealRandom(cfg);
     if(isSolved(tubes, cfg.perColor)) continue;
-    const sol = solvePath(tubes, cfg);
-    if(sol) return { tubes: tubes, cfg: cfg, par: sol.path.length };
+    const info = solveInfo(tubes, cfg);
+    if(info.ok) return { tubes: tubes, cfg: cfg, par: info.len };
   }
-  return { tubes: dealRandom(cfg), cfg: cfg, par: cfg.colors * cfg.perColor };
+  return { tubes: dealRandom(cfg), cfg: cfg, par: cfg.colors * cfg.perColor * 3 };
 }
 function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round(par * 1.5)) return 2; return 1; }
 
@@ -475,10 +480,9 @@ function refreshMenu(){
 function buildLevels(){
   const grid = $("lvGrid");
   grid.innerHTML = "";
-  const maxU = meta.maxLevel || 1;
-  const total = Math.max(20, Math.ceil(maxU / 5) * 5 + 5);
+  const maxU = Math.min(meta.maxLevel || 1, MAX_LEVEL);
   const curLevel = state ? state.level : -1;
-  for(let l = 1; l <= total; l++){
+  for(let l = 1; l <= MAX_LEVEL; l++){
     const unlocked = l <= maxU;
     const b = document.createElement("button");
     b.className = "lvl-btn" + (unlocked ? "" : " locked") + (l === curLevel ? " cur" : "");
@@ -507,7 +511,7 @@ function startLevel(level, fresh){
     state = { level: level, cfg: gen.cfg, tubes: gen.tubes, moves: 0, history: [], par: gen.par, hintsLeft: 3, undosLeft: 5, selected: null };
     save();
   }
-  if(level > meta.maxLevel){ meta.maxLevel = level; saveMeta(); }
+  if(level > meta.maxLevel){ meta.maxLevel = Math.min(level, MAX_LEVEL); saveMeta(); }
   lastDrop = null; shakeIdx = null;
   render();
 }
@@ -533,8 +537,7 @@ function render(){
     if(hintFrom === idx) el.classList.add("hintf");
     if(hintTo === idx) el.classList.add("hintt");
 
-    const run = topRun(tube);
-    const liftFrom = (state.selected === idx && run) ? tube.length - run.count : Infinity;
+    const liftFrom = (state.selected === idx && tube.length > 0) ? tube.length - 1 : Infinity;
     const dropFrom = (lastDrop && lastDrop.to === idx) ? tube.length - lastDrop.count : Infinity;
 
     tube.forEach(function(color, bi){
@@ -566,12 +569,12 @@ function clearHint(){ if(hintTimer){ clearTimeout(hintTimer); hintTimer = null; 
 function canMove(from, to){
   if(from === to) return 0;
   const src = state.tubes[from], dst = state.tubes[to];
-  const run = topRun(src);
-  if(!run) return 0;
+  if(src.length === 0) return 0;
+  const color = src[src.length-1];
   const space = state.cfg.capacity - dst.length;
   if(space <= 0) return 0;
-  if(dst.length > 0 && dst[dst.length-1] !== run.color) return 0;
-  return Math.min(run.count, space);
+  if(dst.length > 0 && dst[dst.length-1] !== color) return 0;
+  return 1; /* faqat bitta to'p ko'chadi */
 }
 function onTube(idx){
   hintText.textContent = "";
@@ -619,11 +622,11 @@ function showHint(){
   clearHint();
   hintText.textContent = "";
   if(state.hintsLeft <= 0) return;
-  const sol = solvePath(state.tubes, state.cfg);
-  if(!sol || sol.path.length === 0){ hintText.textContent = "Bu holatdan yechib bo‘lmaydi — Orqaga yoki Qaytadan."; sBad(); return; }
+  const info = solveInfo(state.tubes, state.cfg);
+  if(!info.ok || !info.first){ hintText.textContent = "Bu holatdan yechib bo‘lmaydi — Orqaga yoki Qaytadan."; sBad(); return; }
   state.hintsLeft--;
   save();
-  const mv = sol.path[0];
+  const mv = info.first;
   state.selected = null;
   hintFrom = mv.from; hintTo = mv.to;
   hintText.textContent = (mv.from + 1) + "-idishdan " + (mv.to + 1) + "-idishga  (" + (mv.from + 1) + " → " + (mv.to + 1) + ")";
@@ -640,11 +643,13 @@ function win(){
   const isRecord = (prev === undefined || prev === null || state.moves < prev);
   if(isRecord) meta.best[state.level] = state.moves;
   if(!meta.stars[state.level] || st > meta.stars[state.level]) meta.stars[state.level] = st;
-  if(state.level + 1 > meta.maxLevel) meta.maxLevel = state.level + 1;
+  if(state.level + 1 > meta.maxLevel) meta.maxLevel = Math.min(state.level + 1, MAX_LEVEL);
   saveMeta();
-  $("winTitle").textContent = state.level + "-daraja tugadi!";
+  const finished = state.level >= MAX_LEVEL;
+  $("winTitle").textContent = finished ? "🏆 Barcha 100 daraja tugadi!" : (state.level + "-daraja tugadi!");
   $("recBadge").style.display = isRecord ? "" : "none";
   $("winInfo").innerHTML = "<b>" + state.moves + "</b> yurish · Rekord: <b>" + meta.best[state.level] + "</b>";
+  $("next").style.display = finished ? "none" : "";
   $("overlay").classList.add("show");
   sWin(); vib([0, 40, 40, 90]); confetti();
 }
@@ -687,7 +692,7 @@ $("hint").addEventListener("click", showHint);
 $("undo").addEventListener("click", undo);
 $("restart").addEventListener("click", function(){ if(!state) return; state.selected = null; sTap(); startLevel(state.level, true); });
 $("home").addEventListener("click", function(){ save(); sTap(); show("menu"); refreshMenu(); });
-$("next").addEventListener("click", function(){ $("overlay").classList.remove("show"); sTap(); startLevel(state.level + 1, true); show("game"); });
+$("next").addEventListener("click", function(){ $("overlay").classList.remove("show"); sTap(); if(state.level >= MAX_LEVEL){ show("menu"); refreshMenu(); return; } startLevel(state.level + 1, true); show("game"); });
 $("winMenu").addEventListener("click", function(){ $("overlay").classList.remove("show"); save(); show("menu"); refreshMenu(); });
 
 /* ================= Menu buttons ================= */
@@ -712,6 +717,13 @@ window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); 
 installBtn.addEventListener("click", function(){ if(!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(function(){ deferredPrompt = null; installBtn.style.display = "none"; }); });
 window.addEventListener("appinstalled", function(){ installBtn.style.display = "none"; });
 if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
+
+/* ================= Audio unlock (mobile needs a gesture) ================= */
+function unlockAudio(){ ac(); }
+document.addEventListener("pointerdown", unlockAudio);
+document.addEventListener("touchstart", unlockAudio, { passive: true });
+document.addEventListener("keydown", unlockAudio);
+document.addEventListener("visibilitychange", function(){ if(!document.hidden) ac(); });
 
 /* ================= Boot ================= */
 (function boot(){ refreshMenu(); show("menu"); })();
