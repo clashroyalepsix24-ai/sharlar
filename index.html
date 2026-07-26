@@ -712,7 +712,13 @@ $("mLevels").addEventListener("click", function(){ sTap(); buildLevels(); show("
 $("lvBack").addEventListener("click", function(){ sTap(); show("menu"); refreshMenu(); });
 $("mHow").addEventListener("click", function(){ sTap(); $("how").classList.add("show"); });
 $("howClose").addEventListener("click", function(){ $("how").classList.remove("show"); });
-$("mExit").addEventListener("click", function(){ sTap(); show("bye"); try{ window.close(); }catch(e){} });
+$("mExit").addEventListener("click", function(){
+  sTap();
+  /* O'rnatilgan ilovada (standalone) oynani yopadi -> telefon bosh ekraniga qaytadi. */
+  try{ window.close(); }catch(e){}
+  /* Agar brauzer yopishga ruxsat bermasa (odatdagi tabда), xayrlashuv ekranini ko'rsatamiz. */
+  setTimeout(function(){ show("bye"); }, 250);
+});
 $("byeBack").addEventListener("click", function(){ show("menu"); refreshMenu(); });
 
 /* ================= PWA install + SW ================= */
