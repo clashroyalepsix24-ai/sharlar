@@ -1,5 +1,5 @@
 /* Sharlar Saralash — service worker (network-first for HTML, offline-capable) */
-const CACHE = "sharlar-v6";
+const CACHE = "sharlar-v7";
 const ASSETS = [
   "./",
   "./index.html",
