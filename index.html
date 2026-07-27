@@ -338,10 +338,11 @@ const LADDER = [
   [7,4,1],[8,4,1],[6,5,1],[5,6,1],[7,5,1],[6,6,1],[8,5,1],[7,6,1],[8,6,1]
 ];
 function levelConfig(level){
-  /* Qiyinlik zinapoyasi: kuchsiz konkav egri (^0.85) bilan qiyinroq konfiguratsiyalar
-     biroz ERTAROQ keladi (o'yin azgina qiyinroq). L1 -> LADDER[0], L100 -> LADDER[18]. */
-  const p = Math.pow((level - 1) / (MAX_LEVEL - 1), 0.85);
-  let li = Math.floor(p * LADDER.length);
+  /* HAMMA daraja qiyin: eng oson konfiguratsiyalar (LADDER[0..6]) butunlay o'tkazib yuboriladi.
+     1-daraja LADDER[7]=[6,4,1] (6 rang) dan boshlanadi, 100-daraja LADDER[18]=[8,6,1] gacha. */
+  const BASE = 7;
+  const span = LADDER.length - 1 - BASE;   /* 11 */
+  let li = BASE + Math.floor((level - 1) / (MAX_LEVEL - 1) * span);
   if(li < 0) li = 0; if(li > LADDER.length - 1) li = LADDER.length - 1;
   const e = LADDER[li];
   return { colors: e[0], perColor: e[1], empties: e[2], capacity: e[1] + 1 };
@@ -427,14 +428,12 @@ function generateLevel(level){
   return { tubes: dealRandom(cfg), cfg: cfg, par: cfg.colors * cfg.perColor * 3 };
 }
 function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round(par * 1.5)) return 2; return 1; }
-/* Har darajaning yurish limiti: par (eng qisqa yechim) asosida hisoblanadi va daraja
-   oshgani sari tig'izlashadi. 1-daraja: ~2.0x + 6 -> 100-daraja: ~1.25x + 3 (avvalgidan
-   TIG'IZROQ). Optimal yechim doim limitga sig'adi (limit > par), demak har doim yechsa bo'ladi. */
+/* Yurish limiti iloji boricha KAM: optimal yechimga juda yaqin (~6% ustiga, kamida +2).
+   Limit har doim par'dan katta -> yechsa bo'ladi; Orqaga (undo) yurishni qaytargani uchun
+   ehtiyotkor o'yin bilan yutish mumkin. Daraja bo'yicha alohida o'smaydi -- qiyin darajalarda
+   par o'zi kattaroq bo'lgani uchun limit ham tabiiy ravishda kattaroq bo'ladi. */
 function moveLimitFor(par, level){
-  const t = (level - 1) / (MAX_LEVEL - 1);   /* 0..1 */
-  const mult = 2.0 - 0.75 * t;               /* 2.0 -> 1.25 */
-  const cushion = Math.round(6 - 3 * t);     /* 6 -> 3 */
-  return Math.ceil(par * mult) + cushion;
+  return par + Math.max(2, Math.round(par * 0.06));
 }
 
 /* ================= Sound ================= */
