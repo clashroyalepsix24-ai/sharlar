@@ -428,12 +428,12 @@ function generateLevel(level){
   return { tubes: dealRandom(cfg), cfg: cfg, par: cfg.colors * cfg.perColor * 3 };
 }
 function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round(par * 1.5)) return 2; return 1; }
-/* Yurish limiti iloji boricha KAM: optimal yechimga juda yaqin (~6% ustiga, kamida +2).
-   Limit har doim par'dan katta -> yechsa bo'ladi; Orqaga (undo) yurishni qaytargani uchun
-   ehtiyotkor o'yin bilan yutish mumkin. Daraja bo'yicha alohida o'smaydi -- qiyin darajalarda
-   par o'zi kattaroq bo'lgani uchun limit ham tabiiy ravishda kattaroq bo'ladi. */
+/* Yurish limiti = par: aynan yutish uchun kerakli eng kam yurish soni (0 zaxira).
+   Solver topgan yechim uzunligicha limit beriladi -> shuncha yurishda (mukammal o'ynab)
+   yutsa bo'ladi, undan oshsa yutqaziladi. Orqaga (undo) yurishni qaytargani uchun
+   xatoni tuzatish imkoni bor, lekin har bir ortiqcha yurish limitni yeydi. */
 function moveLimitFor(par, level){
-  return par + Math.max(2, Math.round(par * 0.06));
+  return par;
 }
 
 /* ================= Sound ================= */
