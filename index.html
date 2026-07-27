@@ -417,12 +417,20 @@ function dealRandom(cfg){
 }
 function generateLevel(level){
   const cfg = levelConfig(level);
-  for(let a = 0; a < 400; a++){
+  /* Sharlar JOYLASHUVINI qiyinroq qilish: bir nechta yechiladigan taxta ichidan eng ko'p
+     yurish talab qiladigani (eng katta par = eng chalkashi) tanlanadi. */
+  const WANT = 8;
+  let best = null, found = 0;
+  for(let a = 0; a < 700 && found < WANT; a++){
     const tubes = dealRandom(cfg);
     if(isSolved(tubes, cfg.perColor)) continue;
     const info = solveInfo(tubes, cfg);
-    if(info.ok) return { tubes: tubes, cfg: cfg, par: info.len };
+    if(info.ok){
+      found++;
+      if(!best || info.len > best.par) best = { tubes: tubes, cfg: cfg, par: info.len };
+    }
   }
+  if(best) return best;
   return { tubes: dealRandom(cfg), cfg: cfg, par: cfg.colors * cfg.perColor * 3 };
 }
 function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round(par * 1.5)) return 2; return 1; }
@@ -430,7 +438,7 @@ function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round
    deyarli optimal o'ynash kerak, lekin ozgina xatoga joy bor. Limit hamisha par'dan katta
    (yechsa bo'ladi); undan oshsa yutqaziladi. Orqaga (undo) yurishni qaytaradi. */
 function moveLimitFor(par, level){
-  return Math.round(par * 1.35);
+  return Math.round(par * 1.5);
 }
 
 /* ================= Sound ================= */
