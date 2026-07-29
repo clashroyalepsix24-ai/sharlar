@@ -448,11 +448,11 @@ function generateLevel(level){
   return { tubes: decodeBoard(e[0]), cfg: cfg, par: e[1].length / 2, sol: decodePath(e[1]), init: decodeBoard(e[0]) };
 }
 function starsFor(moves, par){ if(moves <= par) return 3; if(moves <= Math.round(par * 1.5)) return 2; return 1; }
-/* Yurish limiti = par + 2: aniq eng kam yurish + 2 "nafas" (kichik zaxira, xatoga ozgina joy).
-   par = bankdagi optimal yechim uzunligi (BFS bilan aniq hisoblangan). 2 tagacha ortiqcha
+/* Yurish limiti = par + 5: aniq eng kam yurish + 5 "nafas" (zaxira, xatoga joy).
+   par = bankdagi optimal yechim uzunligi (BFS bilan aniq hisoblangan). 5 tagacha ortiqcha
    yurishga ruxsat; undan oshsa yutqaziladi. Undo yurishni qaytaradi. */
 function moveLimitFor(par, level){
-  return par + 2;
+  return par + 5;
 }
 
 /* ================= Sound ================= */
